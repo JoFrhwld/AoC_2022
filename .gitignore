@@ -3,5 +3,6 @@
 .RData
 .Ruserdata
 renv/
+_freeze/
 
 /.quarto/

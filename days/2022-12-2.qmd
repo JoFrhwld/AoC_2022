@@ -1,0 +1,121 @@
+---
+title: "Day 2"
+author: "Josef Fruehwald"
+editor: visual
+date: 2022-12-2
+categories:
+  - "R"
+  - "tidyverse"
+  - "|>"
+---
+
+# Part 1
+
+## Setup
+
+source: <https://adventofcode.com/2022/day/2>
+
+Rock paper scissors setup
+
+```{r}
+sessionInfo()
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+rock_paper_scissors_outcome <- function(player1, player2){
+  ## Draw score
+  if(player1 == player2){
+    return(3)
+  }
+  ## p2 win conditions
+  else if(player1 == "rock" & player2 == "paper"){
+    return(6)
+  }else if(player1 == "paper" & player2 == "scissors"){
+    return(6)
+  }else if(player1 == "scissors" & player2 == "rock"){
+    return(6)
+  }
+  ## else lose
+  else{
+    return(0)
+  }
+}
+```
+
+```{r}
+tribble(~p1, ~p2,
+        "rock", "rock",
+        "rock", "paper",
+        "scissors", "paper") |>
+  rowwise() |>
+  mutate(
+    outcome = map2(
+      p1, 
+      p2, 
+      rock_paper_scissors_outcome
+      ) |>
+        simplify()
+    )
+
+```
+
+```{r}
+p1_map <- 
+  tribble(
+    ~X1, ~p1,
+    "A", "rock",
+    "B", "paper",
+    "C", "scissors"
+  )
+
+p2_map <-
+  tribble(
+    ~X2, ~p2,
+    "X", "rock",
+    "Y", "paper",
+    "Z", "scissors"
+  )
+
+score_map <-
+  tribble(
+    ~score, ~p2,
+    1, "rock",
+    2, "paper",
+    3, "scissors"
+  )
+```
+
+```{r}
+strategy <- read_delim(
+  "2022-12-2_assets/input.txt", 
+  col_names = FALSE,
+  delim = " "
+  )
+```
+
+```{r}
+play_score <- 
+  strategy |>
+    left_join(p1_map) |>
+    left_join(p2_map) |>
+    left_join(score_map) |>
+    mutate(win = map2(
+        p1,
+        p2,
+        rock_paper_scissors_outcome
+      ) |>
+        simplify(),
+      total_score = score + win
+    )
+```
+
+```{r}
+play_score |>
+  summarise(total_score = sum(total_score))
+```
+
+# Part 2
