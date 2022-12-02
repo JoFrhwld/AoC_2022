@@ -3,6 +3,7 @@ title: "Day 2"
 author: "Josef Fruehwald"
 editor: visual
 date: 2022-12-2
+image: "2022-12-2_files/figure-html/fig-outcome-1.png"
 categories:
   - "R"
   - "tidyverse"
@@ -204,4 +205,71 @@ strategy |>
   ) |>
   # total score
   summarise(total_score = sum(total_score))
+```
+
+# Just for fun
+
+```{r}
+library(ggdark)
+library(khroma)
+library(showtext)
+library(scales)
+
+font_add_google(name = "Mountains of Christmas", family = "christmas")
+showtext_auto()
+```
+
+```{r}
+#| label: fig-outcome
+#| fig-width: 6
+#| fig-height: 4
+#| fig-align: center
+#| out-width: 100%
+#| fig-cap: "Score over turns"
+both_score <- 
+  strategy |>
+    mutate(turn = 1:n()) |>
+    left_join(p1_map) |>
+    left_join(outcome_map) |>
+    left_join(strategy_map) |>
+    left_join(score_map) |>
+    left_join(score_map |> 
+                transmute(p1 = p2,
+                          p1_score = score)) |>
+    mutate(outcome_score = map2(
+        p1, 
+        p2, 
+        rock_paper_scissors_outcome
+      ) |>
+        simplify(),
+      p1_outcome_score = abs(outcome_score-6)
+    ) |>
+    arrange(turn) |>
+    mutate(
+      p1_cumulative = cumsum(score + outcome_score),
+      p2_cumulative = cumsum(p1_score + p1_outcome_score)
+    ) |>
+    select(turn, p1_cumulative, p2_cumulative) |>
+    pivot_longer(
+      p1_cumulative:p2_cumulative, 
+      names_to = "player", 
+      values_to = "score"
+    )
+
+both_score |>
+  ggplot(aes(turn, score, color = player))+
+    geom_line(linewidth = 1) +
+    geom_point(data = both_score |> filter(turn == max(turn)),
+               size = 3) +
+    scale_color_light(labels = c("elf", "me"))+
+    scale_x_continuous(labels = label_comma())+
+    scale_y_continuous(labels = label_comma())+
+    dark_theme_grey()+
+    labs(
+      title = "Rock-Paper-Scissors outcome",
+      subtitle = "the dang elves set me up!"
+    )+
+    theme(title = element_text(family = "christmas", size = 20),
+          plot.subtitle = element_text(family = "sans", size = 10),
+          legend.position = c(0.1, 0.75))
 ```
