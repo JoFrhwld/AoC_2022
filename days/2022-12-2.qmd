@@ -26,6 +26,8 @@ library(tidyverse)
 ```
 
 ```{r}
+#| label: rps_function
+
 rock_paper_scissors_outcome <- function(player1, player2){
   ## Draw score
   if(player1 == player2){
@@ -47,11 +49,13 @@ rock_paper_scissors_outcome <- function(player1, player2){
 ```
 
 ```{r}
+#| label: rps_function_test
+
+# testing the function
 tribble(~p1, ~p2,
         "rock", "rock",
         "rock", "paper",
         "scissors", "paper") |>
-  rowwise() |>
   mutate(
     outcome = map2(
       p1, 
@@ -62,6 +66,8 @@ tribble(~p1, ~p2,
     )
 
 ```
+
+I'll use a few different joins to map the first column and the second column to `"rock"`, `"paper"` and `"scissors"`, and also to map player 2's move to a score.
 
 ```{r}
 p1_map <- 
@@ -89,6 +95,8 @@ score_map <-
   )
 ```
 
+Reading in the data.
+
 ```{r}
 strategy <- read_delim(
   "2022-12-2_assets/input.txt", 
@@ -96,6 +104,8 @@ strategy <- read_delim(
   delim = " "
   )
 ```
+
+It's just a few joins, then rowwise mapping of the `rock_paper_scissors_outcome()` function to get the score components. Adding the columns together and summarizing finishes it off.
 
 ```{r}
 play_score <- 
@@ -119,3 +129,79 @@ play_score |>
 ```
 
 # Part 2
+
+Need a new mapping of X2 to outcome
+
+```{r}
+outcome_map <-
+  tribble(~X2, ~outcome,
+          "X", "lose",
+          "Y", "draw",
+          "Z", "win")
+```
+
+To get the move player two should make, I could do a lot of logical conjunctions in `case_when()`, like this.
+
+```{r}
+#| echo: fenced
+#| eval: false
+
+case_when(outcome == "win" & p1 == "rock" ~ "paper",
+          outcome == "win" & p2 == "scissors" ~ "rock",
+          ...)
+```
+
+Instead, I'll just use a named vector, and use player 1's move to index either the winning move vector or the losing move vector.
+
+```{r}
+win_vec = c(
+  "rock" = "paper", 
+  "paper" = "scissors",
+  "scissors" = "rock"
+)
+
+lose_vec = c(
+  "paper" = "rock", 
+  "scissors" = "paper",
+  "rock" = "scissors"
+)
+```
+
+Setting up one big map. The unique combination of player 1's move, the intended outcome, and player 2's move, to be merged onto the data.
+
+```{r}
+strategy_map <- 
+  expand_grid(
+    p1 = c("rock", "paper", "scissors"),
+    outcome = c("lose", "draw", "win"),
+  ) |>
+    mutate(p2 = case_when(
+        outcome == "draw" ~ p1,
+        outcome == "win" ~ win_vec[p1],
+        outcome == "lose" ~ lose_vec[p1]
+      )
+    )
+```
+
+```{r}
+strategy |>
+  # reusing the score map from part 1
+  left_join(p1_map) |>
+  # now column 2 gets mapped to outcome
+  left_join(outcome_map) |>
+  # given the scores and outcomes, get player 2 moves
+  left_join(strategy_map) |>
+  # score player 2 moves
+  left_join(score_map) |>
+  # score plays
+  mutate(outcome_score = map2(
+      p1, 
+      p2, 
+      rock_paper_scissors_outcome
+    ) |>
+      simplify(),
+    total_score = score + outcome_score
+  ) |>
+  # total score
+  summarise(total_score = sum(total_score))
+```
