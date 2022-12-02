@@ -1,0 +1,7 @@
+---
+title: "Main"
+listing:
+  contents: days
+---
+
+I'll be doing the Advent of Code 2022 here. I'll probably be late most days. R+tidyverse is my preferred language, but might dip into some python as needed.
