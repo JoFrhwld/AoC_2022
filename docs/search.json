@@ -4,7 +4,7 @@
     "href": "index.html",
     "title": "Main",
     "section": "",
-    "text": "I’ll be doing the Advent of Code 2022 here. I’ll probably be late most days. R+tidyverse is my preferred language, but might dip into some python as needed.\n\n\n\n\n\n\n\n\n\n\nDay 1\n\n\n\n\n\n\n\n\n\n\n\n\nDec 1, 2022\n\n\nJosef Fruehwald\n\n\n\n\n\n\nNo matching items"
+    "text": "I’ll be doing the Advent of Code 2022 here. I’ll probably be late most days. R+tidyverse is my preferred language, but might dip into some python as needed.\n\n\n\n\n\n\n\n\n  \n\n\n\n\nDay 1\n\n\n\n\n\n\n\nR\n\n\ntidyverse\n\n\n|>\n\n\n\n\n\n\n\n\n\n\n\nDec 1, 2022\n\n\nJosef Fruehwald\n\n\n\n\n\n\nNo matching items"
   },
   {
     "objectID": "days/2022-12-1.html",
@@ -40,5 +40,12 @@
     "title": "Day 1",
     "section": "Strategy",
     "text": "Strategy\nI’ll identify the rows with NA and fill them with the row index. Then fill downward. I’ll need a special rule for the first row.\n\ncalories |>\n  ## a unique id for each elf.\n  ## won't increment by 1, but will be unique\n  mutate(\n    row_idx = 1:n(),\n    elf_id = case_when(\n      is.na(X1) ~ row_idx,  \n      row_idx == 1 ~ row_idx\n    )\n  ) |>\n  ## fill in the elf id for all rows\n  fill(elf_id) |>\n  ## drop na values for summarising\n  drop_na() |>\n  ## group_by, summarise, arrange\n  group_by(elf_id) |>\n  summarise(total_calories = sum(X1)) |>\n  arrange(desc(total_calories)) |>\n  ## pull the top number \n  slice(1) |>\n  pull(total_calories)\n\n[1] 70764"
+  },
+  {
+    "objectID": "days/2022-12-1.html#just-for-fun",
+    "href": "days/2022-12-1.html#just-for-fun",
+    "title": "Day 1",
+    "section": "Just for fun",
+    "text": "Just for fun\n\nlibrary(showtext)\n\nLoading required package: sysfonts\n\n\nLoading required package: showtextdb\n\nlibrary(ggdark)\nlibrary(scales)\n\n\nAttaching package: 'scales'\n\n\nThe following object is masked from 'package:purrr':\n\n    discard\n\n\nThe following object is masked from 'package:readr':\n\n    col_factor\n\nlibrary(khroma)\n\nfont_add_google(name = \"Mountains of Christmas\", family = \"christmas\")\nshowtext_auto()\n\n\ntotal_calories <- \n  calories |>\n    ## a unique id for each elf.\n    ## won't increment by 1, but will be unique\n    mutate(\n      row_idx = 1:n(),\n      elf_id = case_when(\n        is.na(X1) ~ row_idx,  \n        row_idx == 1 ~ row_idx\n      )\n    ) |>\n    ## fill in the elf id for all rows\n    fill(elf_id) |>\n    ## drop na values for summarising\n    drop_na() |>\n    ## group_by, summarise, arrange\n    group_by(elf_id) |>\n    summarise(total_calories = sum(X1)) |>\n    arrange(desc(total_calories)) |>\n    mutate(rank = 1:n())\n\n\ntotal_calories |>\n  ggplot(aes(rank, total_calories)) + \n    geom_point()+\n    scale_x_continuous(labels = label_comma())+\n    scale_y_continuous(labels = label_comma())+\n    labs(title = \"Total calories per elf\")+\n    dark_theme_gray()+\n    theme(title = element_text(family = \"christmas\", size = 20))\n\n\n\n\nFigure 1: total calories by rank\n\n\n\n\n\ntotal_calories |>\n  arrange(elf_id) |>\n  mutate(elf_order = 1:n()) |>\n  ggplot(aes(elf_order, total_calories, color = rank)) + \n    geom_point()+\n    scale_x_continuous(labels = label_comma())+\n    scale_y_continuous(labels = label_comma())+\n    scale_color_oslo(reverse = TRUE) +\n    guides(colour = guide_colourbar(reverse = TRUE))+\n    labs(title = \"Total calories per elf\")+\n    dark_theme_gray()+\n    theme(title = element_text(family = \"christmas\", size = 20))\n\n\n\n\nFigure 2: total calories by order"
   }
 ]

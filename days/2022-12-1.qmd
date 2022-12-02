@@ -3,6 +3,11 @@ title: "Day 1"
 author: "Josef Fruehwald"
 date: 2022-12-1
 editor: visual
+categories:
+  - "R"
+  - "tidyverse"
+  - "|>"
+image: "2022-12-1_files/figure-html/fig-cal-order-1.png"
 ---
 
 Source: <https://adventofcode.com/2022/day/1>
@@ -147,4 +152,79 @@ calories |>
   pull(total_calories) |>
   ## sum up
   sum()
+```
+
+## Just for fun
+
+```{r}
+library(showtext)
+library(ggdark)
+library(scales)
+library(khroma)
+
+font_add_google(name = "Mountains of Christmas", family = "christmas")
+showtext_auto()
+```
+
+```{r}
+total_calories <- 
+  calories |>
+    ## a unique id for each elf.
+    ## won't increment by 1, but will be unique
+    mutate(
+      row_idx = 1:n(),
+      elf_id = case_when(
+        is.na(X1) ~ row_idx,  
+        row_idx == 1 ~ row_idx
+      )
+    ) |>
+    ## fill in the elf id for all rows
+    fill(elf_id) |>
+    ## drop na values for summarising
+    drop_na() |>
+    ## group_by, summarise, arrange
+    group_by(elf_id) |>
+    summarise(total_calories = sum(X1)) |>
+    arrange(desc(total_calories)) |>
+    mutate(rank = 1:n())
+```
+
+```{r}
+#| label: fig-cal-rank
+#| fig-width: 5
+#| fig-height: 5
+#| fig-align: center
+#| fig-cap: total calories by rank
+#| message: false
+
+total_calories |>
+  ggplot(aes(rank, total_calories)) + 
+    geom_point()+
+    scale_x_continuous(labels = label_comma())+
+    scale_y_continuous(labels = label_comma())+
+    labs(title = "Total calories per elf")+
+    dark_theme_gray()+
+    theme(title = element_text(family = "christmas", size = 20))
+```
+
+```{r}
+#| label: fig-cal-order
+#| fig-width: 6
+#| fig-height: 5
+#| fig-align: center
+#| fig-cap: total calories by order
+#| message: false
+
+total_calories |>
+  arrange(elf_id) |>
+  mutate(elf_order = 1:n()) |>
+  ggplot(aes(elf_order, total_calories, color = rank)) + 
+    geom_point()+
+    scale_x_continuous(labels = label_comma())+
+    scale_y_continuous(labels = label_comma())+
+    scale_color_oslo(reverse = TRUE) +
+    guides(colour = guide_colourbar(reverse = TRUE))+
+    labs(title = "Total calories per elf")+
+    dark_theme_gray()+
+    theme(title = element_text(family = "christmas", size = 20))
 ```
