@@ -6,7 +6,7 @@ editor: visual
 categories:
   - "R"
   - "tidyverse"
-  - "|>"
+  - "`|>`"
 image: "2022-12-1_files/figure-html/fig-cal-order-1.png"
 ---
 

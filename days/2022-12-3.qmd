@@ -1,0 +1,201 @@
+---
+title: "Day 3"
+author: "Josef Fruehwald"
+date: 2022-12-3
+editor: visual
+image: "2022-12-3_files/figure-html/fig-priority-pie-1.png"
+categories:
+  - "R"
+  - "tidyverse"
+  - "`|>`"
+  - "stringr"
+---
+
+Source: <https://adventofcode.com/2022/day/3>
+
+# Part 1
+
+## Description:
+
+Given a string of letters, we need to split them in half, and then find the single letter in common between them. Each letter is assigned a score, and then we need to sum them up.
+
+I think I'll rely on `stringr` for this?
+
+```{r}
+sessionInfo()
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+input <- read_tsv(
+  "2022-12-3_assets/input.txt", 
+  col_names = FALSE
+)
+```
+
+```{r}
+compartment <- 
+  input |>
+  mutate(
+    # Get a total character count
+    n = nchar(X1),
+    # split the whole character string into a list
+    item_list = map(X1, ~str_split(.x, pattern = "", simplify = TRUE)),
+    # get the vector for the first half
+    compartment1 = map2(item_list, n, ~.x[1:(.y/2)]),
+    # get the vector for the second half
+    compartment2 = map2(item_list, n, ~.x[((.y/2)+1):.y]),
+    # get the shared values
+    shared = map2(compartment1, compartment2, ~.x[.x %in% .y])
+  ) 
+```
+
+At this point, there are some values in `shared` are longer than 1. I need to check on those
+
+```{r}
+compartment |>
+  mutate(n_shared = map(shared, length) |> simplify()) |>
+  filter(n_shared > 1) |>
+  sample_n(size = 5) |>
+  pull(shared)
+```
+
+I see, they're repeated. I'll uniquify and see if it's all just length 1
+
+```{r}
+#| warning: false
+compartment |>
+  mutate(unique_shared = map(shared, unique),
+         n_unique = map(unique_shared, length) |> simplify()) |>
+  filter(n_unique !=  1)
+```
+
+Ok, good to go.
+
+```{r}
+shared_item_df <- 
+  compartment |>
+  mutate(unique_shared = map(shared, unique) |> simplify()) 
+```
+
+I'll use named vectors again to get the scores.
+
+```{r}
+item_score = (1:52) |> set_names(c(letters, LETTERS))
+```
+
+```{r}
+shared_item_df |>
+  mutate(priority = item_score[unique_shared]) |>
+  summarise(priority = sum(priority))
+```
+
+# Part 2
+
+Task, find the common letters in each three row sequence. I can start off with the compartment data frame from before.
+
+```{r}
+group_coding <- 
+  compartment |>
+  mutate(group = rep(1:(n()/3), each = 3))
+```
+
+I think I'll write a n-way `%in%`.
+
+```{r}
+multi_in <- function(x){
+  out <- x[[1]]
+  for(i in seq_along(x)){
+    out = x[[i]][x[[i]] %in% out]
+  }
+  return(out)
+}
+```
+
+```{r}
+multi_in(
+  list(
+    c("a", "b", "c", "d"), 
+    c("a", "x", "y", "c"), 
+    c("a", "x", "z")
+  )
+)
+```
+
+```{r}
+group_coding |>
+  group_by(group) |>
+  summarise(shared = multi_in(item_list) |> unique(),
+            priority = item_score[shared]) |>
+  summarise(priority = sum(priority))
+```
+
+## Just for fun
+
+```{r}
+library(ggdark)
+library(khroma)
+library(showtext)
+library(scales)
+
+font_add_google(name = "Mountains of Christmas", family = "christmas")
+showtext_auto()
+
+theme_set(dark_theme_gray() + 
+            theme(title = element_text(family = "christmas", size = 20)))
+```
+
+```{r}
+#| label: fig-priority-bar
+#| fig-width: 5
+#| fig-height: 5
+#| fig-align: center
+#| fig-cap: "the number of groups with a given priority"
+group_coding |>
+  group_by(group) |>
+  summarise(shared = multi_in(item_list) |> unique(),
+            priority = item_score[shared]) |>
+  group_by(shared) |>
+  summarise(n = n(),
+            group_priority = priority[1],
+            total_priority = sum(priority)) |>
+  ggplot(aes(group_priority, n))+
+    geom_col(fill = "lightblue", color = "white")+
+    labs(title = "count of priority groups")
+```
+
+```{r}
+knitr::knit_hooks$set(crop = knitr::hook_pdfcrop)
+```
+
+```{r}
+#| label: fig-priority-pie
+#| fig-width: 5
+#| fig-height: 5
+#| fig-align: center
+#| crop: true
+#| fig-cap: "the proportion of groups with a given priority"
+group_coding |>
+  group_by(group) |>
+  summarise(shared = multi_in(item_list) |> unique(),
+            priority = item_score[shared]) |>
+  group_by(shared) |>
+  summarise(n = n(),
+            group_priority = priority[1],
+            total_priority = sum(priority)) |>
+  arrange(group_priority) |>
+ ggplot(aes("x", n))+
+    geom_col(aes(fill = group_priority),
+             color = "white",
+             position = "fill")+
+    scale_fill_oslo()+
+    labs(title = "proportion of priority groups",
+         x = NULL,
+         y = NULL)+
+    coord_polar(theta = "y")+
+    theme(axis.text.y = element_blank(),
+          axis.ticks.y = element_blank())
+```
