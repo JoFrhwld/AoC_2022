@@ -18,7 +18,8 @@ website:
 format:
   html:
     theme: "darkly"
-    css: styles.css
+    include-in-header: google_font.html
+    monofont: Fira Code
     toc: true
 
 editor: visual
