@@ -1,0 +1,116 @@
+---
+title: "Day 4"
+author: "Josef Fruehwald"
+date: 2022-12-4
+editor: visual
+image: "2022-12-4_files/figure-html/fig-overlap-1.png"
+categories:
+  - "R"
+  - "tidyverse"
+  - "`|>`"
+---
+
+# Part 1
+
+Given two ranges of numbers, we need to find how many ranges have a complete overlap.
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+data <- read_csv("2022-12-4_assets/input.txt", col_names = FALSE)
+```
+
+```{r}
+elf_ranges <- 
+  data |>
+  separate(
+    X1, 
+    into = c("elf1_start", "elf1_end"),
+    convert = TRUE
+  ) |>
+  separate(
+    X2,
+    into = c("elf2_start", "elf2_end"),
+    convert = TRUE
+  )
+```
+
+For two ranges of numbers, they overlap if
+
+    x1   .....   x2
+       y1  .......  y2
+       
+    x1 <= y2
+    y1 <= x2
+
+```{r}
+overlaps <- 
+  elf_ranges |>
+  filter(elf1_start <= elf2_end,
+         elf2_start <= elf1_end)
+```
+
+I think I have to use disjunction to find complete containment? Either
+
+    x1 .......... x2
+       y1 ... y2
+       
+    x1 <= y1 & x2 >= y2 || y1 <= x1 & y2 >= x2
+
+```{r}
+overlaps |>
+  filter((elf1_start <= elf2_start & elf1_end >= elf2_end) | 
+           (elf2_start <= elf1_start & elf2_end >= elf1_end)) |>
+  nrow()
+```
+
+# Part 2
+
+Hah! Got the number of overlaps first!
+
+```{r}
+overlaps |> nrow()
+```
+
+# Just for Fun
+
+```{r}
+library(showtext)
+library(ggdark)
+library(scales)
+library(khroma)
+
+font_add_google(name = "Mountains of Christmas", family = "christmas")
+showtext_auto()
+
+theme_set(dark_theme_gray() + 
+            theme(title = element_text(family = "christmas", size = 20)))
+```
+
+```{r}
+#| label: fig-overlap
+#| fig-width: 6
+#| fig-height: 5
+#| fig-align: center
+#| fig-cap: "Degree of overlap by position"
+overlaps |>
+  rowwise() |>
+  mutate(overlap_start = max(c(elf1_start, elf2_start)),
+         overlap_end = min(c(elf1_end, elf2_end)),
+         overlap_df = map2(overlap_start, overlap_end, ~tibble(position = .x:.y))) |>
+  select(overlap_df) |>
+  unnest(overlap_df) |>
+  ggplot(aes(position))+
+    stat_bin(binwidth = 1,
+             aes(y = after_stat(count), 
+                 fill = after_stat(count))) +
+    stat_density(aes(y = after_stat(count),
+                     linewidth = after_stat(count)), 
+                 geom = "path")+
+    scale_fill_oslo(guide = "none")+
+    scale_linewidth(guide = "none")+
+    labs(title = "overlap by position")
+
+```
