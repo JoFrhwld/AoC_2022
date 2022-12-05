@@ -1,0 +1,137 @@
+---
+title: "Day 5"
+author: "Josef Fruehwald"
+date: 2022-12-5
+editor: visual
+echo: fenced
+categories:
+  - python
+---
+
+# Part 1
+
+I think for preprocessing the text, I'm going to start off with python.
+
+```{r}
+library(reticulate)
+```
+
+```{python}
+#| echo: fenced
+with open("2022-12-5_assets/input.txt", "r") as data:
+  lines = data.readlines()
+```
+
+## Setting up the initial state
+
+```{python}
+#| echo: fenced
+initial_state = [x.replace("\n", "") 
+                  for x in lines 
+                    if "move" not in x and len(x) > 1]
+initial_state
+```
+
+There's not a fixed delimiter between every column. Each column is 3 characters wide, with a space in between.
+
+```{python}
+#| echo: fenced
+[len(x) for x in initial_state]
+```
+
+```{python}
+def three_split(x):
+  out = []
+  start = 0
+  done = False
+  while not done:
+    end = start + 3
+    item = x[start:end].strip()
+    out.append(item)
+    start = end + 1
+    if start > len(x):
+      done = True
+  return(out)
+```
+
+```{python}
+state_rows = [three_split(x) for x in initial_state]
+state_rows
+```
+
+I had a big hang up here, because I created the list of empty lists with `[[]] * 9`, which *copies* the empty list, so when I appended a value to `columns[0]`, it appended that value to *all* columns.
+
+```{python}
+columns = [[] for _ in range(len(state_rows[0]))]
+for ridx, row in enumerate(state_rows):
+  for cidx, col in enumerate(state_rows[ridx]):
+    if len(col) > 0 :
+      columns[cidx].append(col)
+    
+print(columns)
+```
+
+## Setting up the move function
+
+```{python}
+move_instructions = [x.strip() for x in lines if "move" in x]
+```
+
+```{python}
+import re
+move_list = [re.findall(r'\d+', line) 
+              for line in move_instructions]
+move_int = [[int(x[0]), int(x[1])-1, int(x[2])-1] 
+              for x in move_list]
+```
+
+```{python}
+def move_fun(m):
+  n = m[0]
+  fro = move[1]
+  to = move[2]
+  for i in range(n):
+    columns[to].insert(0, columns[fro].pop(0))
+```
+
+```{python}
+for move in move_int:
+  move_fun(move)
+```
+
+```{python}
+"".join([x[0].replace("[", "").replace("]", "") for x in columns])
+```
+
+# Part 2
+
+reset initial state
+
+```{python}
+columns = [[] for _ in range(len(state_rows[0]))]
+for ridx, row in enumerate(state_rows):
+  for cidx, col in enumerate(state_rows[ridx]):
+    if len(col) > 0 :
+      columns[cidx].append(col)
+
+```
+
+```{python}
+def move_fun9001(m):
+  n = m[0]
+  fro = move[1]
+  to = move[2]
+  columns[to] = columns[fro][0:n] + columns[to]
+  columns[fro] = columns[fro][n:]
+  
+```
+
+```{python}
+for move in move_int:
+  move_fun9001(move)
+
+```
+
+```{python}
+"".join([x[0].replace("[", "").replace("]", "") for x in columns])
+```
