@@ -1,0 +1,206 @@
+---
+title: "Day 6"
+author: "Josef Fruehwald"
+editor: visual
+image: "2022-12-6_files/figure-html/fig-pos-unique-1.png"
+categories:
+  - "R"
+  - "tidyverse"
+  - "`|>`"
+  - "purrr"
+  - "map"
+---
+
+# Part 1
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+x <- read_lines("2022-12-6_assets/input.txt")
+```
+
+```{r}
+input <- tibble(signal = str_split(x, pattern = "")[[1]])
+```
+
+```{r}
+input_lagged <- 
+  input |>
+  mutate(lag1 = lag(signal, 1),
+         lag2 = lag(signal, 2),
+         lag3 = lag(signal, 3),
+         n = 1:n())
+```
+
+```{r}
+input_lagged |>
+  drop_na() |>
+  mutate(sequence = str_c(signal, lag1, lag2, lag3),
+         len_unique_sequence = map(sequence, ~.x |> 
+                                     str_split("") |>
+                                     simplify() |>
+                                     unique() |>
+                                     length()) |> simplify()) |> 
+  filter(len_unique_sequence == 4) |>
+  slice(1) |>
+  pull(n)
+```
+
+# Part 2
+
+I've seen the folly of my ways.
+
+```{r}
+chunkup <- function(chunk_size, x){
+  start_indices = seq(1,length(x)-chunk_size+1)
+  end_indicies = seq(chunk_size, length(x))
+  pad <- rep(NA, chunk_size - 1)
+  out <- map2(start_indices, end_indicies, ~x[..1:..2])
+  out <- c(pad, out)
+  return(out)
+}
+```
+
+Replicating part 1 just to check
+
+```{r}
+input |>
+  mutate(
+    id = 1:n(),
+    sequences = chunkup(4, signal),
+    seq_unique_len = map(
+      sequences, ~.x |> 
+        unique() |>  
+        length()
+    ) |> 
+      simplify()
+  ) |>
+  filter(seq_unique_len == 4)
+```
+
+Looks good!
+
+```{r}
+input |>
+  mutate(
+    id = 1:n(),
+    sequences = chunkup(14, signal),
+    seq_unique_len = map(
+      sequences, ~.x |> 
+        unique() |>  
+        length()
+    ) |> 
+      simplify()
+  ) |>
+  filter(seq_unique_len == 14) |>
+  slice(1) |>
+  pull(id)
+```
+
+# Just for Fun
+
+```{r}
+library(ggdark)
+library(khroma)
+library(showtext)
+library(scales)
+library(emojifont)
+
+font_add_google(name = "Mountains of Christmas", family = "christmas")
+font_add(family = "Noto Emoji", regular = file.path(font_paths()[2], "NotoEmoji-VariableFont_wght.ttf"))
+showtext_auto()
+
+theme_set(dark_theme_gray() + 
+            theme(title = element_text(family = "christmas", size = 20)))
+```
+
+```{r}
+#| label: fig-pos-len
+#| fig-width: 5
+#| fig-height: 5
+#| fig-align: center
+#| fig-cap: "the unique length of 14 character long strings"
+input |>
+  mutate(
+    id = 1:n(),
+    sequences = chunkup(14, signal),
+    seq_unique_len = map(
+      sequences, ~.x |> 
+        unique() |>  
+        length()
+    ) |> 
+      simplify()
+  ) |>
+  slice(14:n()) |>
+  ggplot(aes(id, seq_unique_len))+
+    geom_point(position = position_jitter(width = 0, height = 0.1))
+```
+
+```{r}
+sequence_checker <- function(seq_len, df){
+  df |>
+    mutate(
+      id = 1:n(),
+      sequences = chunkup(seq_len, signal),
+      !!quo_name(seq_len) := map(
+        sequences, ~.x |> 
+          unique() |>  
+          length()
+      ) |> 
+        simplify()
+    ) |>
+    slice(seq_len:n()) |>
+    select(id, !!quo_name(seq_len)) -> out
+  return(out)
+}
+```
+
+```{r}
+#| message: false
+map(4:26, ~sequence_checker(.x, input)) |>
+  reduce(left_join) |>
+  pivot_longer(-1, names_to = "seq_len", values_to = "unique_len") |>
+  drop_na() |>
+  mutate(prop_unique = unique_len/as.numeric(seq_len)) -> unique_df
+```
+
+```{r}
+#| label: fig-seq-unique
+#| fig-width: 5
+#| fig-height: 5
+#| fig-align: center
+#| fig-cap: "Location of first sequence n long"
+unique_df |>
+  mutate(seq_len = as.numeric(seq_len)) |>
+  filter(seq_len == unique_len) |>
+  group_by(seq_len) |>
+  slice(1) |>
+  ggplot(aes(seq_len, id))+
+    geom_text(label = emoji("snowflake"), 
+              size = 12, 
+              family = "Noto Emoji")+
+    labs(x = "sequence length",
+         y = "position of first unique sequence")
+
+
+
+```
+
+Looks like no sequence longer than 14 has a unique run of letters!
+
+```{r}
+#| label: fig-pos-unique
+#| fig-width: 8
+#| fig-height: 5
+#| fig-align: center
+#| fig-cap: "Number of unique characters divided by sequence length"
+#| message: false
+unique_df |>
+  ggplot(aes(id, prop_unique))+
+  stat_smooth(aes(group = seq_len, color = as.numeric(seq_len)))+
+  scale_color_bam(name = "sequence\nlength", midpoint = median(4:26))+
+  scale_x_continuous(labels = label_comma())+
+  ylim(0,1)
+```
