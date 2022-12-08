@@ -1,0 +1,162 @@
+---
+title: "Day 7"
+author: "Josef Fruehwald"
+editor: visual
+image: "2022-12-7_files/figure-html/fig-depth-1.png"
+categories:
+  - "python"
+  - "defaultdict"
+  - "pandas"
+---
+
+# Part 1
+
+I think I'll use python, specifically `collections.defaultdict()`.
+
+```{python}
+from path_dict import PathDict
+from collections import defaultdict
+import re
+import pandas as pd
+
+```
+
+```{python}
+def default0():
+  return 0
+```
+
+```{python}
+filesystem = PathDict({})
+dir_sum = defaultdict(default0)
+
+
+```
+
+```{python}
+with open("2022-12-7_assets/input.txt", 'r') as f:
+  history = f.readlines()
+history = [line.strip().split() for line in history]
+
+```
+
+```{python}
+def path_update(path, x):
+  if x == "/":
+    path = ["/"]
+  elif x == "..":
+    _ = path.pop(-1)
+  else:
+    path += [x]
+  return(path)
+
+```
+
+I think I can skip over trying to build out the directory structure in the `PathDict` ... but will I regret it in part 2
+
+```{python}
+path_state = ["/"]
+scanned_files = []
+
+for line in history:
+  if line[0] == "$":
+    if line[1] == "cd":
+      path_state = path_update(path_state, line[2])
+  else:
+    if re.search(r'\d', line[0]):
+      # this point messed me up at first! 
+      # There are (obviously?) not unique individual filenames!
+      file_name = "/".join(path_state) + f"/line[1]"
+      if not file_name in scanned_files:
+        # *and* there's not unique path names!
+        for idx in range(len(path_state)):
+          path_name = "/".join(path_state[0:idx+1])
+          dir_sum[path_name] += int(line[0])
+        scanned_files.append(path_state+[line[1]])
+
+```
+
+```{python}
+dir_df = pd.DataFrame(dir_sum, index = [1])
+```
+
+I kind of badly want to pivot over to R via reticulate, but let's try pandas real quick.
+
+```{python}
+long_dir = pd.melt(dir_df)
+long_dir[long_dir["value"] <= 100_000]["value"].sum()
+```
+
+```{python}
+long_dir
+```
+
+# Part 2
+
+```{python}
+total_space = 70_000_000
+needed_space = 30_000_000
+available_space = total_space - dir_sum["/"]
+min_size = needed_space - available_space
+```
+
+```{python}
+long_dir["diff_from_needed"] = long_dir["value"] - min_size
+(long_dir[
+  long_dir["diff_from_needed"] > 0
+  ]
+  .sort_values(by = "diff_from_needed")
+  .iloc[0]
+  ["value"]
+)
+```
+
+# Just for fun
+
+```{r}
+library(tidyverse)
+library(reticulate)
+library(ggdark)
+library(khroma)
+library(showtext)
+library(scales)
+library(ggbeeswarm)
+library(emojifont)
+
+font_add_google(name = "Mountains of Christmas", family = "christmas")
+font_add(family = "Noto Emoji", regular = file.path(font_paths()[2], "NotoEmoji-VariableFont_wght.ttf"))
+
+showtext_auto()
+
+theme_set(dark_theme_gray() + 
+            theme(title = element_text(family = "christmas", size = 20)))
+```
+
+```{r}
+long_dir = py$dir_df
+```
+
+```{r}
+#| label: fig-depth
+#| fig-width: 6
+#| fig-height: 5
+#| fig-cap: "Directory embedding depth and total size"
+#| fig-align: center
+py$long_dir |>
+  mutate(depth = str_count(variable, "/") - 1) |>
+  ggplot(aes(factor(depth), value, color = value))+
+    #geom_quasirandom(varwidth = TRUE, width = 0.2)+
+    geom_beeswarm()+
+    stat_summary(fun = median, 
+                 geom = "text", 
+                 color = "white",
+                 label = emoji("floppy_disk"),
+                 family = "Noto Emoji",
+                 size = 6)+
+    scale_color_hawaii(trans = "log10", guide = "none")+
+    labs(x = "embedding depth",
+         y = "directory size (log scale)",
+         title = "Embedding vs Size")+
+    scale_y_log10(labels = label_comma())+
+    annotation_logticks(color = "white", sides = 'l')
+```
