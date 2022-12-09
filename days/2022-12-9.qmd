@@ -209,7 +209,7 @@ all_pos <- bind_rows(tail_pos_df, head_pos_df)
 #| fig-cap: "Paths of head and tail"
 all_pos |>
   ggplot(aes(X1, X2, color = step)) +
-    geom_path(linewidth = 1) +
+    geom_point(size = 0.2) +
     coord_fixed()+
     scale_color_hawaii()+
     labs(x = "x",
@@ -284,7 +284,7 @@ all_pos <- bind_rows(tail_pos_df, head_pos_df)
 #| fig-cap: "Paths of head and tail"
 all_pos |>
   ggplot(aes(X1, X2, color = step)) +
-    geom_path(linewidth = 1) +
+    geom_point(size = 0.2) +
     coord_fixed()+
     scale_color_hawaii()+
     labs(x = "x",
