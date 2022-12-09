@@ -183,6 +183,15 @@ Head_Tail_update <- function(dir, step){
 x <- map2(full_route$step, full_route$step_num, Head_Tail_update)
 ```
 
+The answer
+
+```{r}
+Tail_list |>
+  reduce(rbind) |>
+  unique() |>
+  nrow()
+```
+
 ```{r}
 tail_pos_df <- 
   Tail_list |>
@@ -209,7 +218,7 @@ all_pos <- bind_rows(tail_pos_df, head_pos_df)
 #| fig-cap: "Paths of head and tail"
 all_pos |>
   ggplot(aes(X1, X2, color = step)) +
-    geom_point(size = 0.2) +
+    geom_point(size = 0.2, alpha = 0.2) +
     coord_fixed()+
     scale_color_hawaii()+
     labs(x = "x",
@@ -237,17 +246,20 @@ Head_Tail_update2 <- function(dir, step){
   Head_list[[step]] <<- Head_now
 
   reference <- Head_now
+  Tail_list[[step]] <<- Tail_list[[step-1]]
   
   for(i in 1:9){
     Tail_prev <- Tail_list[[step-1]][[i]]
     if(move_decision(reference, Tail_prev)){
       tail_movement <- move_vector(reference, Tail_prev)
       Tail_now <- Tail_prev + tail_movement
+      Tail_list[[step]][[i]] <<- Tail_now
+      reference <- Tail_now
     } else {
-      Tail_now <- Tail_prev
+      # I've already copied the previous tail states
+      # If this tail didn't move, none of the rest will either
+      break
     }
-    reference <- Tail_now
-    Tail_list[[step]][[i]] <<- Tail_now
   }
   return()
 }
@@ -260,7 +272,6 @@ x <- map2(full_route$step, full_route$step_num, Head_Tail_update2)
 ```{r}
 map(Tail_list, ~.x[[9]]) |>
   reduce(rbind) |>
-  data.frame() |>
   unique() |>
   nrow()
 ```
@@ -284,7 +295,7 @@ all_pos <- bind_rows(tail_pos_df, head_pos_df)
 #| fig-cap: "Paths of head and tail"
 all_pos |>
   ggplot(aes(X1, X2, color = step)) +
-    geom_point(size = 0.2) +
+    geom_point(size = 0.2, alpha = 0.2) +
     coord_fixed()+
     scale_color_hawaii()+
     labs(x = "x",
