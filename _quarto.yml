@@ -6,7 +6,7 @@ execute:
   freeze: auto
 
 website:
-  title: "Advent of Code 2022"
+  title: "Joe's Advent of Code 2022"
   # navbar:
   #   left:
   #     - href: index.qmd
@@ -14,6 +14,9 @@ website:
   sidebar: 
     style: "floating"
     search: true
+    contents: 
+      - href: https://jofrhwld.github.io/
+        text: "my homepage"
 
 format:
   html:

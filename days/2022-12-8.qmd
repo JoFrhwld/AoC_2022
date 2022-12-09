@@ -205,7 +205,3 @@ view_scores |>
     scale_x_continuous(expand = expansion(mult = 0))+
     coord_fixed()  
 ```
-
-```{r}
-
-```
