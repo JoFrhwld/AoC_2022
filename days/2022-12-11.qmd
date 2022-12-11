@@ -5,4 +5,4 @@ date: 2022-12-11
 editor: visual
 ---
 
-# Part 1
+# [Part 1](https://adventofcode.com/2022/day/11)
