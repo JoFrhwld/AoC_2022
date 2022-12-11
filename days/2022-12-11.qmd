@@ -1,9 +1,8 @@
 ---
 title: "Day 11"
 author: "Josef Fruehwald"
+date: 2022-12-11
 editor: visual
 ---
 
 # Part 1
-
-this is a test
