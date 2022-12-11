@@ -1,0 +1,184 @@
+---
+title: "Day 10"
+author: "Josef Fruehwald"
+date: 2022-12-11
+editor: visual
+image: "2022-12-10_files/figure-html/fig-crt-cycle-1.png"
+twitter-card:
+  image: "2022-12-10_files/figure-html/fig-crt-cycle-1.png"
+open-graph:
+  image: "2022-12-10_files/figure-html/fig-crt-cycle-1.png"
+categories:
+  - "R"
+  - "`map()`"
+  - "`unnest()`"
+  - "ggplot2"
+---
+
+# [Part 1](https://adventofcode.com/2022/day/10)
+
+~~Ok, it seems like the commands execute sequentially without overlap, so this should be pretty straight forward.~~
+
+So I said the night of, but was having some kind of persistent off-by-1 errors *somewhere*. In the light of day I seem to have fixed it.
+
+```{r}
+#| message: false
+library(tidyverse)
+library(ggdark)
+library(khroma)
+library(showtext)
+library(scales)
+library(ggfx)
+font_add_google(name = "Mountains of Christmas", 
+                family = "christmas")
+font_add(family = "Noto Emoji", 
+         regular = file.path(font_paths()[2], 
+                             "NotoEmoji-VariableFont_wght.ttf"))
+
+showtext_auto()
+
+theme_set(dark_theme_minimal(base_size = 12) + 
+           theme(title = element_text(family = "christmas", 
+                                      size = 20)))
+
+knitr::knit_hooks$set(crop = knitr::hook_pdfcrop)
+```
+
+```{r}
+commands <- read_lines("2022-12-10_assets/input.txt")
+example <- read_lines("2022-12-10_assets/sample.txt")
+```
+
+My approach is going to involve expanding out the cycle commands into a dataframe where I have a column of what value should be added at each cycle. I need functions to
+
+1.  explicitly provide `noop` with the value 0,
+2.  return a vector of `c(0)` for `noop` and a vector of `c(0, X)` for `addx`.
+
+```{r}
+expand_noop <- function(x){
+  if(ncol(x) == 1){
+    out <- c(x[1, ], "0")
+  }else{
+    out <- x[1, ]
+  }
+  return(out)
+}
+
+expand_command <- function(command, value){
+  if(command == "noop"){
+    out <- data.frame(add = 0)
+  }else if(command == "addx"){
+    out <- data.frame(add = c(0, as.numeric(value)))
+  }
+  return(out)
+}
+```
+
+```{r}
+#| message: false
+sample_commands <- c("noop", "addx 3", "addx -5")
+map(sample_commands, ~str_split(.x, " ", simplify = T)) |>
+  map(~expand_noop(.x)) |>
+  reduce(rbind) |>
+  as_tibble(.name_repair = "universal") |>
+  mutate(command = 1:n()) |>
+  mutate(cycle_adds = map2(...1, ...2, expand_command)) |>
+  unnest(cycle_adds) |>
+  mutate(cycle = 1:n(),
+         # The add X event doesn't occur until 
+         # *after* the cycle ends, so *during*
+         # the cycle, X is the cumulative sum 
+         # lagged by 1
+         X_after = cumsum(add) + 1,
+         X = lag(X_after))
+```
+
+That worked like the small example said it should. Re-wrapping the code as a function:
+
+```{r}
+cycle_compute <- function(commands){
+  map(commands, ~str_split(.x, " ", simplify = T)) |>
+  map(~expand_noop(.x)) |>
+  reduce(rbind) |>
+  as_tibble(.name_repair = "universal") |>
+  mutate(command = 1:n()) |>
+  mutate(cycle_adds = map2(...1, ...2, expand_command)) |>
+  unnest(cycle_adds) |>
+  mutate(cycle = 1:n(),
+         X_during= cumsum(add) + 1,
+         X = lag(X_during),
+         strength = X * cycle)->out
+  return(out)
+}
+```
+
+Comparing the function against the bigger example (cause this was giving me such big problems earlier)
+
+```{r}
+#| message: false
+example_results <- c(420, 1140, 1800, 2940, 2880, 3960)
+cycle_compute(example) |>
+  slice(c(20, 60, 100, 140, 180, 220)) |>
+  mutate(answers = example_results)|>
+  select(strength, answers)
+```
+
+That also worked correctly. Here we go on the actual commands.
+
+```{r}
+#| message: false
+cycle_info <- cycle_compute(commands)
+cycle_info |>
+  slice(c(20, 60, 100, 140, 180, 220)) |>
+  summarise(strength = sum(strength))
+```
+
+# Part 2
+
+Step 1: Set up the rows & pixels
+
+```{r}
+cycle_info |>
+  mutate(pixel = rep(0:39, n()/40),
+         row = rep(1:(n()/40), each = 40),
+         X = replace_na(X, 1),
+         strength = replace_na(strength, 1)) -> cycle_info
+```
+
+I think drawing should just be whether X-1 \<= pixel \<= X+1?
+
+For fun, I'm going to add an outer glow to the tile with the `ggfx` package.
+
+```{r}
+#| crop: true
+#| label: fig-message
+#| fig-cap: "The message from the CRT screen"
+cycle_info |>
+  mutate(draw = (X-1) <= pixel & pixel <= (X+1)) |>
+  filter(draw) |>
+  ggplot(aes(pixel, row))+
+    with_outer_glow(
+      geom_tile(fill = "white"),
+      colour = "green",
+      expand = 3
+    )+
+    scale_y_reverse()+
+    coord_fixed()+
+    dark_theme_void()
+```
+
+# Just for Fun
+
+```{r}
+#| label: fig-crt-cycle
+#| fig-cap: "The CRT signal"
+#| fig-width: 6
+#| fig-height: 4
+cycle_info |>
+  ggplot(aes(cycle, X))+
+    with_outer_glow(
+      geom_line(linewidth = 2), 
+      colour = "green",
+      expand = 3
+    )
+```
