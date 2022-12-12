@@ -3,11 +3,297 @@ title: "Day 11"
 author: "Josef Fruehwald"
 date: 2022-12-11
 editor: visual
+image: "2022-12-11_files/figure-html/fig-network-1.png"
+twitter-card:
+  image: "2022-12-11_files/figure-html/fig-network-1.png"
+open-graph:
+  image: "2022-12-11_files/figure-html/fig-network-1.png"
+categories:
+  - "python"
+  - "`%`"
 ---
 
 # [Part 1](https://adventofcode.com/2022/day/11)
 
+Ok, maybe I'll do this with some python classes...
+
+```{python}
+import re
+from math import floor
+import numpy as np
+```
+
+This took a few iterations.
+
+```{python}
+class Monkey:
+  
+  def __init__(self, items, operation, test, test_true, test_false):
+    self.items = items
+    self.operation = operation
+    self.test = test
+    self.test_true = test_true
+    self.test_false = test_false
+    self.inspections = 0
+    self.test_results = []
+    self.throw_to = []
+    self.op_fun = lambda old: eval(self.operation)
+    self.test_fun = lambda x: x % self.test == 0
+    
+  def update_worry(self):
+    self.items = [self.op_fun(x) for x in self.items]
+    self.items = [floor(x/3) for x in self.items]
+    self.inspections += len(self.items)
+    
+  def test_items(self):
+    self.test_results = [self.test_fun(x) for x in self.items]
+    
+  def set_throws(self):
+    self.throw_to = [self.test_true if x else self.test_false for x in self.test_results]
+    
+  def receive(self, x):
+    self.items.append(x)
+    
+  def set_thrown(self):
+    self.items = []
+    self.test_results = []
+    self.throw_to = []
+
+```
+
+The plan is to parse the input into a dictionary, to be passed to the `Monkey()` class via `**kwargs`.
+
+```{python}
+def parse_monkeys(path):
+  
+  with open(path) as f:
+    content = f.read()
+  monkey_lines= content.split("\n\n")
+  monkey_lines = [x.split("\n") for x in monkey_lines]
+  monkey_rules = [{} for _ in range(len(monkey_lines))]
+  for idx, ruleset in enumerate(monkey_lines):
+    items = re.sub(r"\s+Starting items:\s+", "", ruleset[1]).split(",")
+    items = [int(x) for x in items]
+    monkey_rules[idx]["items"] = items
+    
+    operation = re.sub(r"\s+Operation: new = ", "", ruleset[2])
+    monkey_rules[idx]["operation"] = operation
+    
+    test = re.findall(r"\d+", ruleset[3])
+    monkey_rules[idx]["test"] = int(test[0])
+    
+    test_true = re.findall(r"\d+", ruleset[4])
+    monkey_rules[idx]["test_true"] = int(test_true[0])
+    
+    test_false = re.findall(r"\d+", ruleset[5])
+    monkey_rules[idx]["test_false"] = int(test_false[0])    
+    
+  return(monkey_rules)
+
+```
+
+Now, a function for one iteration.
+
+```{python}
+def one_round(monkeys):
+  for m in monkeys:
+    m.update_worry()
+    m.test_items()
+    m.set_throws()
+    for item, to_m in zip(m.items, m.throw_to):
+      monkeys[to_m].receive(item)
+    m.set_thrown()
+  return(monkeys)
+```
+
+```{python}
+ex_monkey_rules = parse_monkeys("2022-12-11_assets/example.txt")
+```
+
+```{python}
+ex_monkeys = [Monkey(**rules) for rules in ex_monkey_rules]
+```
+
+```{python}
+ex_monkeys = one_round(ex_monkeys)
+ex_monkeys = one_round(ex_monkeys)
+[m.items for m in ex_monkeys]
+
+```
+
+That looks right. Time to test the 20 round example.
+
+```{python}
+# reset
+ex_monkey_rules = parse_monkeys("2022-12-11_assets/example.txt")
+ex_monkeys = [Monkey(**rules) for rules in ex_monkey_rules]
+for i in range(20):
+  ex_monkeys = one_round(ex_monkeys)
+
+[m.inspections for m in ex_monkeys]
+```
+
+Ok, now the real deal
+
+```{python}
+monkey_rules = parse_monkeys("2022-12-11_assets/input.txt")
+monkeys = [Monkey(**rules) for rules in monkey_rules]
+for i in range(20):
+  monkeys = one_round(monkeys)
+
+inspection_counts = [m.inspections for m in monkeys]
+```
+
+```{python}
+inspection_counts.sort()
+```
+
+```{python}
+most_counts = inspection_counts[-2:]
+most_counts[0] * most_counts[1]
+```
+
+# Part 2
+
+It says the worry is no longer divided by 3, "you'll need to find another way to keep your worry levels manageable" hmm. Is that integer overflow or something?
+
+Caveat: I got hints from the subreddit for this one
+
+```{python}
+class Monkey2:
+  
+  def __init__(self, items, operation, test, test_true, test_false, const):
+    self.const = const
+    self.items = [x for x in items]
+    self.operation = operation
+    self.test = test
+    self.test_true = test_true
+    self.test_false = test_false
+    self.inspections = 0
+    self.test_results = []
+    self.throw_to = []
+    self.op_fun = lambda old: eval(self.operation)
+    self.test_fun = lambda x: x % self.test == 0
+    
+  def update_worry(self):
+    self.items = [self.op_fun(x) for x in self.items]
+    self.items = [x%self.const for x in self.items]
+    self.inspections += len(self.items)
+    
+  def test_items(self):
+    self.test_results = [self.test_fun(x) for x in self.items]
+    
+  def set_throws(self):
+    self.throw_to = [self.test_true if x else self.test_false for x in self.test_results]
+    
+  def receive(self, x):
+    self.items.append(x)
+    
+  def set_thrown(self):
+    self.items = []
+    self.test_results = []
+    self.throw_to = []
+```
+
+```{python}
+monkey_rules = parse_monkeys("2022-12-11_assets/input.txt")
+const = np.prod([m["test"] for m in monkey_rules])
+monkeys = [Monkey2(**rules, const = const) for rules in monkey_rules]
+for i in range(10_000):
+  monkeys = one_round(monkeys)
+
+inspection_counts = [m.inspections for m in monkeys]
+```
+
+```{python}
+inspection_counts.sort()
+np.prod(inspection_counts[-2:])
+```
+
+# Just for Fun
+
+```{python}
+def one_round(monkeys):
+  from_m_l = []
+  to_m_l= []
+  for i, m in enumerate(monkeys):
+    m.update_worry()
+    m.test_items()
+    m.set_throws()
+    for item, to_m in zip(m.items, m.throw_to):
+      monkeys[to_m].receive(item)
+      from_m_l.append(i)
+      to_m_l.append(to_m)
+    m.set_thrown()
+  return(monkeys, from_m_l, to_m_l)
+```
+
+```{python}
+monkey_rules = parse_monkeys("2022-12-11_assets/input.txt")
+const = np.prod([m["test"] for m in monkey_rules])
+monkeys = [Monkey2(**rules, const = const) for rules in monkey_rules]
+all_from = []
+all_to = []
+for i in range(10_000):
+  monkeys, from_m, to_m = one_round(monkeys)
+  all_from += from_m
+  all_to += to_m
+
+```
+
 ```{r}
+#| echo: fenced
 #| message: false
 library(tidyverse)
+library(ggdark)
+library(khroma)
+library(showtext)
+library(scales)
+library(tidygraph)
+library(ggraph)
+font_add_google(name = "Mountains of Christmas", family = "christmas")
+font_add(family = "Noto Emoji", regular = file.path(font_paths()[2], "NotoEmoji-VariableFont_wght.ttf"))
+
+showtext_auto()
+
+theme_set(dark_theme_gray() + 
+            theme(title = element_text(family = "christmas", size = 20)))
+
+knitr::knit_hooks$set(crop = knitr::hook_pdfcrop)
+```
+
+```{r}
+#| echo: fenced
+library(reticulate)
+monkey_network <- 
+  tibble(from = py$all_from, to = py$all_to)
+```
+
+```{r}
+#| echo: fenced
+#| message: false
+#| crop: true
+#| label: fig-network
+#| fig-cap: "Monkey network"
+#| out-width: "60%"
+monkey_network |>
+  group_by(from, to) |>
+  count() |>
+  as_tbl_graph() |>
+  ggraph(layout = "kk", weights = 1/n) +
+    geom_edge_link(color = "white", 
+                   arrow = arrow(type = 'closed', 
+                                 length = unit(0.25, 'cm'),
+                                 angle = 25), 
+                   alpha = 0.6
+                   )+
+    geom_node_text(label = emojifont::emoji("monkey"), 
+                   family = "Noto Emoji",
+                   size = 9,
+                   aes(colour = name))+
+    scale_color_brewer(palette = "Dark2", guide = "none")+
+    coord_fixed()+
+    scale_y_continuous(expand = expansion(mult = 0.1))+
+    scale_x_continuous(expand = expansion(mult = 0.1))+
+    labs(title = str_wrap("The monkey throwing pattern", width = 25))
 ```
